@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
 
 npm i -D
-if cat /app/package.json 2>/dev/null | jq -r '.scripts.start:dev' 2>/dev/null | grep -v 'null'; then
+if cat "/app/package.json" 2>/dev/null | jq -r '.scripts.start:dev' 2>/dev/null | grep -v 'null'; then
   nodemon --exec npm run start:dev
-elif cat /app/package.json 2>/dev/null | jq -r '.scripts.dev' 2>/dev/null | grep -v 'null'; then
+elif cat "/app/package.json" 2>/dev/null | jq -r '.scripts.dev' 2>/dev/null | grep -v 'null'; then
   nodemon --exec npm run dev
-elif cat /app/package.json 2>/dev/null | jq -r '.scripts.start' 2>/dev/null | grep -v 'null'; then
+elif cat "/app/package.json" 2>/dev/null | jq -r '.scripts.start' 2>/dev/null | grep -v 'null'; then
   nodemon --exec npm run start
 elif [ -f "/app/index.js" ]; then
   nodmon --exec nodemon /app/index.js
