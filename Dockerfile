@@ -1,4 +1,4 @@
-FROM casjaysdev/alpine:latest as build
+FROM casjaysdevdocker/alpine:latest as build
 
 ENV \
   TZ=${TZ:-America/New_York}; \
@@ -7,7 +7,7 @@ ENV \
   FNM_INTERACTIVE_CLI=false; \
   NODE_GYP_FORCE_PYTHON=/usr/bin/python3
 
-RUN apk -U upgrade && \
+RUN apk -U upgrade --no-cache && \
   apk add --no-cache \
   git \
   nodejs \
@@ -37,28 +37,37 @@ RUN \
 COPY ./bin/. /usr/local/bin/
 
 FROM scratch
+
+ENV \
+  TZ=${TZ:-America/New_York}; \
+  SHELL=/bin/bash; \
+  TERM=xterm-256color; \
+  FNM_INTERACTIVE_CLI=false; \
+  NODE_GYP_FORCE_PYTHON=/usr/bin/python3
+
 ARG BUILD_DATE="$(date +'%Y-%m-%d %H:%M')" 
 
 LABEL \
   org.label-schema.name="nodejs" \
   org.label-schema.description="Node Development" \
-  org.label-schema.url="https://github.com/casjaysdev/nodejs" \
-  org.label-schema.vcs-url="https://github.com/casjaysdev/nodejs" \
-  org.opencontainers.image.source=https://github.com/dockerize-it/nodejs \
+  org.label-schema.url="https://hub.docker.com/r/casjaysdevdocker/nodejs" \
+  org.label-schema.vcs-url="https://github.com/casjaysdevdocker/nodejs" \
+  org.opencontainers.image.source=https://github.com/casjaysdevdocker/nodejs \
   org.label-schema.build-date=$BUILD_DATE \
   org.label-schema.version=$BUILD_DATE \
   org.label-schema.vcs-ref=$BUILD_DATE \
-  org.label-schema.license="MIT" \
+  org.label-schema.license="WTFPL" \
   org.label-schema.vcs-type="Git" \
   org.label-schema.schema-version="1.0" \
   org.label-schema.vendor="CasjaysDev" \
   com.casjaysdev.vendor="CasjaysDev" \
   maintainer="CasjaysDev <docker-admin@casjaysdev.com>" 
 
-COPY --from=build / /
+COPY --from=build /. /
+
 WORKDIR /app
-VOLUME /app
+VOLUME [ "/app" ]
 EXPOSE 1-65535
 
-HEALTHCHECK CMD ["/usr/local/bin/docker-entrypoint.sh", "healthcheck"]
-ENTRYPOINT [ "/usr/local/bin/docker-entrypoint.sh"]
+HEALTHCHECK CMD ["/usr/local/bin/entrypoint-nodejs.sh", "healthcheck"]
+ENTRYPOINT [ "/usr/local/bin/entrypoint-nodejs.sh"]
