@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202308292346-git
+##@Version           :  202309031603-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  jason@casjaysdev.pro
 # @@License          :  WTFPL
 # @@ReadME           :  docker-entrypoint --help
 # @@Copyright        :  Copyright: (c) 2023 Jason Hempstead, Casjays Developments
-# @@Created          :  Tuesday, Aug 29, 2023 23:46 EDT
+# @@Created          :  Sunday, Sep 03, 2023 16:03 EDT
 # @@File             :  docker-entrypoint
 # @@Description      :  
 # @@Changelog        :  New script
@@ -83,18 +83,6 @@ HEALTH_ENDPOINTS=""  # url endpoints: [http://localhost/health,http://localhost/
 # Overwrite variables
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-export LANG="${LANG:-C.UTF-8}"
-export LC_ALL="${LANG:-C.UTF-8}"
-export TZ="${TZ:-${TIMEZONE:-America/New_York}}"
-export HOSTNAME="${FULL_DOMAIN_NAME:-${SERVER_HOSTNAME:-$HOSTNAME}}"
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Default directories
-export BACKUP_DIR="${BACKUP_DIR:-/data/backups}"
-export LOCAL_BIN_DIR="${LOCAL_BIN_DIR:-/usr/local/bin}"
-export DEFAULT_DATA_DIR="${DEFAULT_DATA_DIR:-/usr/local/share/template-files/data}"
-export DEFAULT_CONF_DIR="${DEFAULT_CONF_DIR:-/usr/local/share/template-files/config}"
-export DEFAULT_TEMPLATE_DIR="${DEFAULT_TEMPLATE_DIR:-/usr/local/share/template-files/defaults}"
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __run_message() {
 
   return
@@ -102,14 +90,47 @@ __run_message() {
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 ################## END OF CONFIGURATION #####################
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Startup variables
+export INIT_DATE="${INIT_DATE:-$(date)}"
+export START_SERVICES="${START_SERVICES:-yes}"
+export ENTRYPOINT_MESSAGE="${ENTRYPOINT_MESSAGE:-yes}"
+export ENTRYPOINT_FIRST_RUN="${ENTRYPOINT_FIRST_RUN:-yes}"
+export DATA_DIR_INITIALIZED="${DATA_DIR_INITIALIZED:-false}"
+export CONFIG_DIR_INITIALIZED="${CONFIG_DIR_INITIALIZED:-false}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# System
+export LANG="${LANG:-C.UTF-8}"
+export LC_ALL="${LANG:-C.UTF-8}"
+export TZ="${TZ:-${TIMEZONE:-America/New_York}}"
+export HOSTNAME="${FULL_DOMAIN_NAME:-${SERVER_HOSTNAME:-$HOSTNAME}}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Default directories
+export SSL_DIR="${SSL_DIR:-/config/ssl}"
+export SSL_CA="${SSL_CERT:-/config/ssl/ca.crt}"
+export SSL_KEY="${SSL_KEY:-/config/ssl/localhost.pem}"
+export SSL_CERT="${SSL_CERT:-/config/ssl/localhost.crt}"
+export BACKUP_DIR="${BACKUP_DIR:-/data/backups}"
+export LOCAL_BIN_DIR="${LOCAL_BIN_DIR:-/usr/local/bin}"
+export DEFAULT_DATA_DIR="${DEFAULT_DATA_DIR:-/usr/local/share/template-files/data}"
+export DEFAULT_CONF_DIR="${DEFAULT_CONF_DIR:-/usr/local/share/template-files/config}"
+export DEFAULT_TEMPLATE_DIR="${DEFAULT_TEMPLATE_DIR:-/usr/local/share/template-files/defaults}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional
-PHP_INI_DIR="${PHP_INI_DIR:-$(__find_php_ini)}"
-PHP_BIN_DIR="${PHP_BIN_DIR:-$(__find_php_bin)}"
-HTTPD_CONFIG_FILE="${HTTPD_CONFIG_FILE:-$(__find_httpd_conf)}"
-NGINX_CONFIG_FILE="${NGINX_CONFIG_FILE:-$(__find_nginx_conf)}"
-MYSQL_CONFIG_FILE="${MYSQL_CONFIG_FILE:-$(__find_mysql_conf)}"
-PGSQL_CONFIG_FILE="${PGSQL_CONFIG_FILE:-$(__find_pgsql_conf)}"
-MONGODB_CONFIG_FILE="${MONGODB_CONFIG_FILE:-$(__find_mongodb_conf)}"
+export PHP_INI_DIR="${PHP_INI_DIR:-$(__find_php_ini)}"
+export PHP_BIN_DIR="${PHP_BIN_DIR:-$(__find_php_bin)}"
+export HTTPD_CONFIG_FILE="${HTTPD_CONFIG_FILE:-$(__find_httpd_conf)}"
+export NGINX_CONFIG_FILE="${NGINX_CONFIG_FILE:-$(__find_nginx_conf)}"
+export MYSQL_CONFIG_FILE="${MYSQL_CONFIG_FILE:-$(__find_mysql_conf)}"
+export PGSQL_CONFIG_FILE="${PGSQL_CONFIG_FILE:-$(__find_pgsql_conf)}"
+export MONGODB_CONFIG_FILE="${MONGODB_CONFIG_FILE:-$(__find_mongodb_conf)}"
+export ENTRYPOINT_PID_FILE="${ENTRYPOINT_PID_FILE:-/run/init.d/entrypoint.pid}"
+export ENTRYPOINT_INIT_FILE="${ENTRYPOINT_INIT_FILE:-/config/.entrypoint.done}"
+export ENTRYPOINT_DATA_INIT_FILE="${ENTRYPOINT_DATA_INIT_FILE:-/data/.docker_has_run}"
+export ENTRYPOINT_CONFIG_INIT_FILE="${ENTRYPOINT_CONFIG_INIT_FILE:-/config/.docker_has_run}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if [ -f "$ENTRYPOINT_PID_FILE" ] || [ -f "$ENTRYPOINT_INIT_FILE" ]; then
+  START_SERVICES="no" ENTRYPOINT_MESSAGE="no" ENTRYPOINT_FIRST_RUN="no"
+fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # variables based on env/files
 [ "$WEB_SERVER_PORT" = "443" ] && SSL_ENABLED="true"
