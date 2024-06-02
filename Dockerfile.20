@@ -19,7 +19,7 @@ ARG NODE_VERSION="20"
 ARG NODE_MANAGER="fnm"
 
 ARG IMAGE_REPO="casjaysdevdocker/nodejs"
-ARG IMAGE_VERSION="20"
+ARG IMAGE_VERSION="latest"
 ARG CONTAINER_VERSION=""
 
 ARG PULL_URL="casjaysdev/debian"
