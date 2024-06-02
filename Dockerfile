@@ -140,7 +140,6 @@ RUN \
 
 RUN set -ex; \
   echo "Custom Applications"; \
-  unset NODE_VERSION NODE_MANAGER; \
   export PHP_VERSION="${PHP_VERSION}}" NODE_VERSION="${NODE_VERSION}" NODE_MANAGER="${NODE_MANAGER}"; \
   bash -c "$(curl -q -LSsf "https://github.com/templatemgr/nodejs/raw/main/install.sh")"; \
   echo ""
