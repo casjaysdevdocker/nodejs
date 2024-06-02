@@ -45,6 +45,8 @@ ARG DEFAULT_CONF_DIR
 ARG DEFAULT_TEMPLATE_DIR
 ARG DISTRO_VERSION
 ARG PHP_VERSION
+ARG NODE_VERSION
+ARG NODE_MANAGER
 
 ARG PACK_LIST="bash \
   "
@@ -139,7 +141,7 @@ RUN \
 RUN set -ex; \
   echo "Custom Applications"; \
   unset NODE_VERSION NODE_MANAGER; \
-  export PHP_VERSION="${PHP_VERSION}" NODE_VERSION="${NODE_VERSION}" NODE_MANAGER="${NODE_MANAGER}"; \
+  export PHP_VERSION="${PHP_VERSION}}" NODE_VERSION="${NODE_VERSION}" NODE_MANAGER="${NODE_MANAGER}"; \
   bash -c "$(curl -q -LSsf "https://github.com/templatemgr/nodejs/raw/main/install.sh")"; \
   echo ""
 
