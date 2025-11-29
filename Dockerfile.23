@@ -1,7 +1,7 @@
-# Docker image for nodejs using the debian template
+# Docker image for nodejs using the alpine template
 ARG IMAGE_NAME="nodejs"
 ARG PHP_SERVER="nodejs"
-ARG BUILD_DATE="202509161149"
+ARG BUILD_DATE="202511291011"
 ARG LANGUAGE="en_US.UTF-8"
 ARG TIMEZONE="America/New_York"
 ARG WWW_ROOT_DIR="/usr/local/share/httpd/default"
@@ -14,20 +14,22 @@ ARG PATH="/usr/local/etc/docker/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/us
 ARG USER="root"
 ARG SHELL_OPTS="set -e -o pipefail"
 
-ARG SERVICE_PORT=""
-ARG EXPOSE_PORTS="1-65535"
-ARG PHP_VERSION="php81"
-ARG NODE_VERSION="system"
+ARG SERVICE_PORT="80"
+ARG EXPOSE_PORTS=""
+ARG PHP_VERSION="system"
+ARG NODE_VERSION="23"
 ARG NODE_MANAGER="system"
 
 ARG IMAGE_REPO="casjaysdevdocker/nodejs"
-ARG IMAGE_VERSION="latest"
+ARG IMAGE_VERSION="23"
 ARG CONTAINER_VERSION=""
 
-ARG PULL_URL="casjaysdev/debian"
-ARG DISTRO_VERSION="${IMAGE_VERSION}"
+ARG PULL_URL="node"
+ARG DISTRO_VERSION="23-alpine"
 ARG BUILD_VERSION="${BUILD_DATE}"
 
+FROM tianon/gosu:latest AS gosu
+FROM ${PULL_URL}:${DISTRO_VERSION} AS build
 FROM tianon/gosu:latest AS gosu
 FROM ${PULL_URL}:${DISTRO_VERSION} AS build
 ARG TZ
