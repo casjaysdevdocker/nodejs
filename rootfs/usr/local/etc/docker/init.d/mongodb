@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+##@Version           :  202601290255-git
+# @@Author           :  CasjaysDev
+# @@Contact          :  CasjaysDev <docker-admin@casjaysdev.pro>
+# @@License          :  MIT
+# @@ReadME           :
+# @@Copyright        :  Copyright 2025 CasjaysDev
+# @@Created          :  Wed Jan 29 02:55:00 AM EST 2026
+# @@File             :  mongodb
+# @@Description      :  MongoDB initialization script
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# shellcheck disable=SC2016
+# shellcheck disable=SC2031
+# shellcheck disable=SC2120
+# shellcheck disable=SC2155
+# shellcheck disable=SC2199
+# shellcheck disable=SC2317
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+APPNAME="$(basename "$0" 2>/dev/null)"
+VERSION="202601290255-git"
+HOME="${USER_HOME:-$HOME}"
+USER="${SUDO_USER:-$USER}"
+RUN_USER="${SUDO_USER:-$USER}"
+SCRIPT_SRC_DIR="${BASH_SOURCE%/*}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set bash options
+[ "$DEBUGGER" = "on" ] && echo "Enabling debugging" && set -o pipefail -x$DEBUGGER_OPTIONS || set -o pipefail
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# check for command
+__cmd_exists() { command -v "$1" >/dev/null 2>&1 || return 1; }
+__function_exists() { builtin type -t "${1:-404}" 2>/dev/null | grep -q 'function' || return 1; }
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Make sure mongod is installed
+if ! __cmd_exists mongod; then
+  echo "MongoDB is not installed"
+  exit 0
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set variables
+MONGODB_DATA_DIR="${MONGODB_DATA_DIR:-${DATABASE_DIR_MONGODB:-/data/db/mongodb}}"
+MONGODB_LOG_DIR="${MONGODB_LOG_DIR:-/var/log/mongodb}"
+MONGODB_LOG_FILE="${MONGODB_LOG_FILE:-$MONGODB_LOG_DIR/mongod.log}"
+MONGODB_PORT="${MONGODB_PORT:-27017}"
+MONGODB_BIND_IP="${MONGODB_BIND_IP:-0.0.0.0}"
+MONGODB_USER="${MONGODB_USER:-mongodb}"
+MONGODB_CONFIG_FILE="${MONGODB_CONFIG_FILE:-/etc/mongod.conf}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Ensure directories exist
+mkdir -p "$MONGODB_DATA_DIR" "$MONGODB_LOG_DIR"
+touch "$MONGODB_LOG_FILE"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set permissions
+if id "$MONGODB_USER" >/dev/null 2>&1; then
+  chown -Rf "$MONGODB_USER:$MONGODB_USER" "$MONGODB_DATA_DIR" "$MONGODB_LOG_DIR" 2>/dev/null
+  chmod -Rf 755 "$MONGODB_DATA_DIR" "$MONGODB_LOG_DIR" 2>/dev/null
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Create basic config if it doesn't exist
+if [ ! -f "$MONGODB_CONFIG_FILE" ]; then
+  cat <<EOF >"$MONGODB_CONFIG_FILE"
+# MongoDB configuration file
+storage:
+  dbPath: $MONGODB_DATA_DIR
+  journal:
+    enabled: true
+
+systemLog:
+  destination: file
+  logAppend: true
+  path: $MONGODB_LOG_FILE
+
+net:
+  port: $MONGODB_PORT
+  bindIp: $MONGODB_BIND_IP
+
+processManagement:
+  timeZoneInfo: /usr/share/zoneinfo
+EOF
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+echo "Starting MongoDB on port $MONGODB_PORT"
+echo "Data directory: $MONGODB_DATA_DIR"
+echo "Log file: $MONGODB_LOG_FILE"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Start MongoDB in background
+if [ -f "$MONGODB_CONFIG_FILE" ]; then
+  mongod --config "$MONGODB_CONFIG_FILE" &
+else
+  mongod --dbpath "$MONGODB_DATA_DIR" --logpath "$MONGODB_LOG_FILE" --port "$MONGODB_PORT" --bind_ip "$MONGODB_BIND_IP" &
+fi
+# Wait a moment for MongoDB to start
+sleep 2
+echo "MongoDB started"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# End script

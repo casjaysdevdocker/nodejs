@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+##@Version           :  202601290258-git
+# @@Author           :  CasjaysDev
+# @@Contact          :  CasjaysDev <docker-admin@casjaysdev.pro>
+# @@License          :  MIT
+# @@ReadME           :
+# @@Copyright        :  Copyright 2025 CasjaysDev
+# @@Created          :  Wed Jan 29 02:58:00 AM EST 2026
+# @@File             :  nodejs
+# @@Description      :  Node.js application initialization script
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# shellcheck disable=SC2016
+# shellcheck disable=SC2031
+# shellcheck disable=SC2120
+# shellcheck disable=SC2155
+# shellcheck disable=SC2199
+# shellcheck disable=SC2317
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+APPNAME="$(basename "$0" 2>/dev/null)"
+VERSION="202601290258-git"
+HOME="${USER_HOME:-$HOME}"
+USER="${SUDO_USER:-$USER}"
+RUN_USER="${SUDO_USER:-$USER}"
+SCRIPT_SRC_DIR="${BASH_SOURCE%/*}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set bash options
+[ "$DEBUGGER" = "on" ] && echo "Enabling debugging" && set -o pipefail -x$DEBUGGER_OPTIONS || set -o pipefail
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# check for command
+__cmd_exists() { command -v "$1" >/dev/null 2>&1 || return 1; }
+__function_exists() { builtin type -t "${1:-404}" 2>/dev/null | grep -q 'function' || return 1; }
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Make sure node is installed
+if ! __cmd_exists node; then
+  echo "Node.js is not installed"
+  exit 0
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set variables
+NODE_ENV="${NODE_ENV:-production}"
+NODE_APP_DIR="${NODE_APP_DIR:-}"
+NODE_APP_SCRIPT="${NODE_APP_SCRIPT:-}"
+NODE_PORT="${NODE_PORT:-${PORT:-3000}}"
+NODE_HOST="${NODE_HOST:-0.0.0.0}"
+NODE_OPTIONS="${NODE_OPTIONS:-}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Find application directory
+if [ -z "$NODE_APP_DIR" ]; then
+  for dir in /app /data/app /workspace /usr/src/app; do
+    if [ -d "$dir" ]; then
+      NODE_APP_DIR="$dir"
+      break
+    fi
+  done
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Check if app directory exists
+if [ -z "$NODE_APP_DIR" ] || [ ! -d "$NODE_APP_DIR" ]; then
+  echo "No Node.js application directory found"
+  echo "Checked: /app, /data/app, /workspace, /usr/src/app"
+  echo "To specify a custom location, set NODE_APP_DIR environment variable"
+  exit 0
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Change to app directory
+cd "$NODE_APP_DIR" || exit 1
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Find the entry script if not specified
+if [ -z "$NODE_APP_SCRIPT" ]; then
+  if [ -f "package.json" ]; then
+    # Try to get the start script from package.json
+    if __cmd_exists jq; then
+      NODE_APP_SCRIPT="$(jq -r '.main // empty' package.json 2>/dev/null)"
+    fi
+    # Fallback to common entry points
+    [ -z "$NODE_APP_SCRIPT" ] && [ -f "index.js" ] && NODE_APP_SCRIPT="index.js"
+    [ -z "$NODE_APP_SCRIPT" ] && [ -f "server.js" ] && NODE_APP_SCRIPT="server.js"
+    [ -z "$NODE_APP_SCRIPT" ] && [ -f "app.js" ] && NODE_APP_SCRIPT="app.js"
+    [ -z "$NODE_APP_SCRIPT" ] && [ -f "main.js" ] && NODE_APP_SCRIPT="main.js"
+  fi
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Check if we have a valid script to run
+if [ -z "$NODE_APP_SCRIPT" ] && [ ! -f "package.json" ]; then
+  echo "No Node.js application found in $NODE_APP_DIR"
+  echo "Looked for: index.js, server.js, app.js, main.js, package.json"
+  exit 0
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Install dependencies if needed
+if [ -f "package.json" ] && [ ! -d "node_modules" ]; then
+  echo "Installing Node.js dependencies..."
+  if __cmd_exists yarn; then
+    yarn install
+  elif __cmd_exists pnpm; then
+    pnpm install
+  else
+    npm install
+  fi
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Export environment variables
+export NODE_ENV NODE_PORT NODE_HOST NODE_OPTIONS
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+echo "Starting Node.js application"
+echo "Environment: $NODE_ENV"
+echo "Directory: $NODE_APP_DIR"
+echo "Port: $NODE_PORT"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Start the application based on environment
+if [ "$NODE_ENV" = "development" ] || [ "$NODE_ENV" = "dev" ]; then
+  echo "Mode: Development (with file watching)"
+  
+  # Try to use nodemon if available
+  if __cmd_exists nodemon; then
+    echo "Using nodemon for hot reload"
+    if [ -f "package.json" ] && grep -q '"dev"\|"start:dev"' package.json 2>/dev/null; then
+      exec npm run dev
+    elif [ -n "$NODE_APP_SCRIPT" ]; then
+      exec nodemon "$NODE_APP_SCRIPT"
+    else
+      exec nodemon
+    fi
+  # Fallback to node with --watch (Node.js 18+)
+  elif node --help 2>&1 | grep -q -- '--watch'; then
+    echo "Using node --watch for hot reload"
+    if [ -n "$NODE_APP_SCRIPT" ]; then
+      exec node --watch "$NODE_APP_SCRIPT"
+    else
+      exec node --watch .
+    fi
+  # Just use regular node
+  else
+    echo "Warning: nodemon not found and node --watch not available"
+    echo "Install nodemon for hot reload: npm install -g nodemon"
+    if [ -n "$NODE_APP_SCRIPT" ]; then
+      exec node "$NODE_APP_SCRIPT"
+    else
+      exec npm start
+    fi
+  fi
+else
+  echo "Mode: Production"
+  
+  # Use package.json start script if available
+  if [ -f "package.json" ] && grep -q '"start"' package.json 2>/dev/null; then
+    exec npm start
+  # Otherwise run the script directly
+  elif [ -n "$NODE_APP_SCRIPT" ]; then
+    exec node "$NODE_APP_SCRIPT"
+  else
+    echo "Error: No start script found"
+    exit 1
+  fi
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# End script
