@@ -1,4 +1,4 @@
-# Docker image for nodejs using the debian template
+# Docker image for nodejs using the alpine template
 ARG IMAGE_NAME="nodejs"
 ARG PHP_SERVER="nodejs"
 ARG BUILD_DATE="202509161149"
@@ -19,20 +19,18 @@ ARG EXPOSE_PORTS="1-65535"
 ARG PHP_VERSION="php81"
 ARG NODE_VERSION="system"
 ARG NODE_MANAGER="system"
-ARG MONGODB_VERSION="7.0"
 
 ARG IMAGE_REPO="casjaysdevdocker/nodejs"
 ARG IMAGE_VERSION="latest"
 ARG CONTAINER_VERSION=""
 
 ARG PULL_URL="debian"
-ARG DISTRO_VERSION="bookworm"
+ARG DISTRO_VERSION="${IMAGE_VERSION}"
 ARG BUILD_VERSION="${BUILD_DATE}"
 
 FROM tianon/gosu:latest AS gosu
 FROM ${PULL_URL}:${DISTRO_VERSION} AS build
 ARG TZ
-ARG PATH
 ARG USER
 ARG LICENSE
 ARG TIMEZONE
@@ -51,11 +49,10 @@ ARG DEFAULT_TEMPLATE_DIR
 ARG DISTRO_VERSION
 ARG NODE_VERSION
 ARG NODE_MANAGER
-ARG MONGODB_VERSION
 ARG PHP_VERSION
 ARG PHP_SERVER
 ARG SHELL_OPTS
-ARG DEBIAN_FRONTEND
+ARG PATH
 
 ARG PACK_LIST="gnupg curl ca-certificates apt-transport-https"
 
@@ -65,15 +62,13 @@ ENV PATH="${PATH}"
 ENV TZ="${TIMEZONE}"
 ENV TIMEZONE="${TZ}"
 ENV LANG="${LANGUAGE}"
-ENV LC_ALL="${LANGUAGE}"
 ENV TERM="xterm-256color"
 ENV HOSTNAME="casjaysdevdocker-nodejs"
-ENV DEBIAN_FRONTEND="${DEBIAN_FRONTEND}"
 
 USER ${USER}
 WORKDIR /root
 
-COPY ./rootfs/usr/local/bin/. /usr/local/bin/
+COPY ./rootfs/. /
 
 RUN set -e; \
   echo "Updating the system and ensuring bash is installed"; \
@@ -81,7 +76,13 @@ RUN set -e; \
 
 RUN set -e; \
   echo "Setting up prerequisites"; \
-  true
+  apk --no-cache add bash; \
+  SH_CMD="$(which sh 2>/dev/null||command -v sh 2>/dev/null)"; \
+  BASH_CMD="$(which bash 2>/dev/null||command -v bash 2>/dev/null)"; \
+  [ -x "$BASH_CMD" ] && symlink "$BASH_CMD" "/bin/sh" || true; \
+  [ -x "$BASH_CMD" ] && symlink "$BASH_CMD" "/usr/bin/sh" || true; \
+  [ -x "$BASH_CMD" ] && [ "$SH_CMD" != "/bin/sh" ] && symlink "$BASH_CMD" "$SH_CMD" || true; \
+  [ -n "$BASH_CMD" ] && sed -i 's|root:x:.*|root:x:0:0:root:/root:'$BASH_CMD'|g' "/etc/passwd" || true
 
 ENV SHELL="/bin/bash"
 SHELL [ "/bin/bash", "-c" ]
@@ -96,7 +97,12 @@ RUN echo "Initializing the system"; \
 
 RUN echo "Creating and editing system files "; \
   $SHELL_OPTS; \
-  [ -f "/root/.profile" ] || touch "/root/.profile"; \
+  rm -Rf "/etc/apk/repositories"; \
+  [ "$DISTRO_VERSION" = "latest" ] && DISTRO_VERSION="edge";[ "$DISTRO_VERSION" = "edge" ] || DISTRO_VERSION="v${DISTRO_VERSION}"; \
+  echo "http://dl-cdn.alpinelinux.org/alpine/${DISTRO_VERSION}/main" >>"/etc/apk/repositories"; \
+  echo "http://dl-cdn.alpinelinux.org/alpine/${DISTRO_VERSION}/community" >>"/etc/apk/repositories"; \
+  if [ "${DISTRO_VERSION}" = "edge" ]; then echo "http://dl-cdn.alpinelinux.org/alpine/${DISTRO_VERSION}/testing" >>"/etc/apk/repositories";fi; \
+  apk update; apk upgrade --no-cache; \
   if [ -f "/root/docker/setup/01-system.sh" ];then echo "Running the system script";/root/docker/setup/01-system.sh||{ echo "Failed to execute /root/docker/setup/01-system.sh" >&2 && exit 10; };echo "Done running the system script";fi; \
   echo ""
 
@@ -109,29 +115,11 @@ RUN echo "Setting up and installing packages"; \
   if [ -n "${PACK_LIST}" ];then echo "Installing packages: $PACK_LIST";echo "${PACK_LIST}" >/root/docker/setup/packages.txt;pkmgr install ${PACK_LIST};fi; \
   echo ""
 
-RUN echo "Installing Node.js (latest LTS)"; \
-  $SHELL_OPTS; \
-  curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -; \
-  pkmgr install nodejs; \
-  node --version && npm --version; \
-  echo ""
-
-RUN echo "Installing MongoDB ${MONGODB_VERSION}"; \
-  $SHELL_OPTS; \
-  curl -fsSL https://pgp.mongodb.com/server-${MONGODB_VERSION}.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-${MONGODB_VERSION}.gpg; \
-  echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-${MONGODB_VERSION}.gpg ] http://repo.mongodb.org/apt/debian $(. /etc/os-release && echo "$VERSION_CODENAME")/mongodb-org/${MONGODB_VERSION} main" | tee /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}.list; \
-  pkmgr update; \
-  pkmgr install mongodb-org; \
-  mkdir -p /data/db/mongodb /var/log/mongodb; \
-  chown -R mongodb:mongodb /data/db/mongodb /var/log/mongodb; \
-  echo ""
-
 RUN echo "Initializing packages before copying files to image"; \
   $SHELL_OPTS; \
   if [ -f "/root/docker/setup/02-packages.sh" ];then echo "Running the packages script";/root/docker/setup/02-packages.sh||{ echo "Failed to execute /root/docker/setup/02-packages.sh" >&2 && exit 10; };echo "Done running the packages script";fi; \
   echo ""
 
-COPY ./rootfs/. /
 COPY ./Dockerfile /root/docker/Dockerfile
 
 RUN echo "Updating system files "; \
@@ -141,7 +129,7 @@ RUN echo "Updating system files "; \
   echo 'hosts: files dns' >"/etc/nsswitch.conf"; \
   [ "$PHP_VERSION" = "system" ] && PHP_VERSION="php" || true; \
   PHP_BIN="$(command -v ${PHP_VERSION} 2>/dev/null || true)"; \
-  PHP_FPM="$(ls /usr/*bin/php*fpm* 2>/dev/null || true)"; \
+  set -- /usr/*bin/php*fpm*; [ -e "$1" ] && PHP_FPM="$1" || PHP_FPM=""; \
   pip_bin="$(command -v python3 2>/dev/null || command -v python2 2>/dev/null || command -v python 2>/dev/null || true)"; \
   py_version="$(command $pip_bin --version | sed 's|[pP]ython ||g' | awk -F '.' '{print $1$2}' | grep '[0-9]' || true)"; \
   [ "$py_version" -gt "310" ] && pip_opts="--break-system-packages " || pip_opts=""; \
@@ -198,7 +186,7 @@ RUN echo "Deleting unneeded files"; \
   rm -rf /lib/systemd/system/sockets.target.wants/*udev* || true; \
   rm -rf /lib/systemd/system/sockets.target.wants/*initctl* || true; \
   rm -Rf /usr/share/doc/* /var/tmp/* /var/cache/*/* /root/.cache/* /usr/share/info/* /tmp/* || true; \
-  if [ -d "/lib/systemd/system/sysinit.target.wants" ];then cd "/lib/systemd/system/sysinit.target.wants" && rm -f $(ls | grep -v systemd-tmpfiles-setup);fi; \
+  if [ -d "/lib/systemd/system/sysinit.target.wants" ];then cd "/lib/systemd/system/sysinit.target.wants" && for want_file in *; do [ "$want_file" = "systemd-tmpfiles-setup" ] || rm -f "$want_file"; done; fi; \
   if [ -f "/root/docker/setup/07-cleanup.sh" ];then echo "Running the cleanup script";/root/docker/setup/07-cleanup.sh||{ echo "Failed to execute /root/docker/setup/07-cleanup.sh" >&2 && exit 10; };echo "Done running the cleanup script";fi; \
   echo ""
 
@@ -215,6 +203,7 @@ ARG SERVICE_PORT
 ARG EXPOSE_PORTS
 ARG BUILD_VERSION
 ARG IMAGE_VERSION
+ARG GIT_COMMIT
 ARG WWW_ROOT_DIR
 ARG DEFAULT_FILE_DIR
 ARG DEFAULT_DATA_DIR
@@ -241,10 +230,10 @@ LABEL org.opencontainers.image.authors="${LICENSE}"
 LABEL org.opencontainers.image.created="${BUILD_DATE}"
 LABEL org.opencontainers.image.version="${BUILD_VERSION}"
 LABEL org.opencontainers.image.schema-version="${BUILD_VERSION}"
-LABEL org.opencontainers.image.url="docker.io"
-LABEL org.opencontainers.image.source="docker.io"
+LABEL org.opencontainers.image.url="https://docker.io/casjaysdevdocker/nodejs"
+LABEL org.opencontainers.image.source="https://docker.io/casjaysdevdocker/nodejs"
 LABEL org.opencontainers.image.vcs-type="Git"
-LABEL org.opencontainers.image.revision="${BUILD_VERSION}"
+LABEL org.opencontainers.image.revision="${GIT_COMMIT}"
 LABEL org.opencontainers.image.source="https://github.com/casjaysdevdocker/nodejs"
 LABEL org.opencontainers.image.documentation="https://github.com/casjaysdevdocker/nodejs"
 LABEL com.github.containers.toolbox="false"
@@ -274,5 +263,8 @@ VOLUME [ "/config","/data" ]
 
 EXPOSE ${SERVICE_PORT} ${ENV_PORTS}
 
-ENTRYPOINT [ "tini","--","/usr/local/bin/entrypoint.sh" ]
+STOPSIGNAL SIGRTMIN+3
+
+ENTRYPOINT [ "tini", "-p", "SIGTERM","--", "/usr/local/bin/entrypoint.sh" ]
 HEALTHCHECK --start-period=10m --interval=5m --timeout=15s CMD [ "/usr/local/bin/entrypoint.sh", "healthcheck" ]
+

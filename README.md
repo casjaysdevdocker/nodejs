@@ -19,17 +19,18 @@ dockermgr update nodejs
 ## Install and run container
   
 ```shell
-mkdir -p "$HOME/.local/share/srv/docker/nodejs/volumes"
+dockerHome="/var/lib/srv/$USER/docker/casjaysdevdocker/nodejs/nodejs/latest/rootfs"
+mkdir -p "/var/lib/srv/$USER/docker/nodejs/rootfs"
 git clone "https://github.com/dockermgr/nodejs" "$HOME/.local/share/CasjaysDev/dockermgr/nodejs"
-cp -Rfva "$HOME/.local/share/CasjaysDev/dockermgr/nodejs/rootfs/." "$HOME/.local/share/srv/docker/nodejs/volumes/"
+cp -Rfva "$HOME/.local/share/CasjaysDev/dockermgr/nodejs/rootfs/." "$dockerHome/"
 docker run -d \
 --restart always \
 --privileged \
---name casjaysdevdocker-nodejs \
+--name casjaysdevdocker-nodejs-latest \
 --hostname nodejs \
 -e TZ=${TIMEZONE:-America/New_York} \
--v "$HOME/.local/share/srv/docker/casjaysdevdocker-nodejs/volumes/data:/data:z" \
--v "$HOME/.local/share/srv/docker/casjaysdevdocker-nodejs/volumes/config:/config:z" \
+-v "$dockerHome/data:/data:z" \
+-v "$dockerHome/config:/config:z" \
 -p 80:80 \
 casjaysdevdocker/nodejs:latest
 ```
@@ -46,8 +47,8 @@ services:
       - TZ=America/New_York
       - HOSTNAME=nodejs
     volumes:
-      - "$HOME/.local/share/srv/docker/casjaysdevdocker-nodejs/volumes/data:/data:z"
-      - "$HOME/.local/share/srv/docker/casjaysdevdocker-nodejs/volumes/config:/config:z"
+      - "/var/lib/srv/$USER/docker/casjaysdevdocker/nodejs/nodejs/latest/rootfs/data:/data:z"
+      - "/var/lib/srv/$USER/docker/casjaysdevdocker/nodejs/nodejs/latest/rootfs/config:/config:z"
     ports:
       - 80:80
     restart: always
