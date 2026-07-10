@@ -19,8 +19,8 @@ dockermgr update nodejs
 ## Install and run container
   
 ```shell
-dockerHome="/var/lib/srv/$USER/docker/casjaysdevdocker/nodejs/nodejs/latest/rootfs"
-mkdir -p "/var/lib/srv/$USER/docker/nodejs/rootfs"
+dockerHome="/srv/$USER/docker/casjaysdevdocker/nodejs/nodejs/latest/rootfs"
+mkdir -p "/srv/$USER/docker/nodejs/rootfs"
 git clone "https://github.com/dockermgr/nodejs" "$HOME/.local/share/CasjaysDev/dockermgr/nodejs"
 cp -Rfva "$HOME/.local/share/CasjaysDev/dockermgr/nodejs/rootfs/." "$dockerHome/"
 docker run -d \
@@ -47,8 +47,8 @@ services:
       - TZ=America/New_York
       - HOSTNAME=nodejs
     volumes:
-      - "/var/lib/srv/$USER/docker/casjaysdevdocker/nodejs/nodejs/latest/rootfs/data:/data:z"
-      - "/var/lib/srv/$USER/docker/casjaysdevdocker/nodejs/nodejs/latest/rootfs/config:/config:z"
+      - "/srv/$USER/docker/casjaysdevdocker/nodejs/nodejs/latest/rootfs/data:/data:z"
+      - "/srv/$USER/docker/casjaysdevdocker/nodejs/nodejs/latest/rootfs/config:/config:z"
     ports:
       - 80:80
     restart: always
